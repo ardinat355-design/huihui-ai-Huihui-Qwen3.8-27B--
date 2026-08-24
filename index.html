@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HF Inference Tester</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 16px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        h1 {
+            font-size: 20px;
+            margin: 0 0 16px 0;
+            color: #fff;
+        }
+        .section {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #2a2a4a;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            color: #a0a0c0;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #3a3a5a;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-size: 15px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #6366f1;
+        }
+        select {
+            padding-right: 36px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a0a0c0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .token-field {
+            position: relative;
+        }
+        .token-field input {
+            padding-right: 80px;
+        }
+        .toggle-visibility {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #2a2a4a;
+            border: none;
+            color: #a0a0c0;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+        .btn-secondary {
+            background: #2a2a4a;
+            color: #e0e0e0;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn:active:not(:disabled) {
+            opacity: 0.8;
+        }
+        .response-area {
+            background: #0f0f23;
+            border-radius: 10px;
+            padding: 12px;
+            min-height: 120px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border: 1px solid #2a2a4a;
+        }
+        .response-area .placeholder {
+            color: #606080;
+            font-style: italic;
+        }
+        .response-area .error {
+            color: #ef4444;
+        }
+        .response-area .streaming {
+            color: #6366f1;
+        }
+        .stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #606080;
+        }
+        .hidden {
+            display: none;
+        }
+        .saved-token {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .saved-token span {
+            font-size: 13px;
+            color: #22c55e;
+        }
+        .saved-token button {
+            background: #2a2a4a;
+            border: none;
+            color: #ef4444;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .model-hint {
+            font-size: 12px;
+            color: #606080;
+            margin-top: 4px;
+        }
+        .clear-btn {
+            background: transparent;
+            border: 1px solid #3a3a5a;
+            color: #a0a0c0;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .system-prompt-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .system-prompt-toggle input {
+            width: auto;
+        }
+        .history-item {
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .history-item:hover {
+            border-color: #3a3a5a;
+        }
+        .history-item .q {
+            color: #a0a0c0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-item .meta {
+            color: #606080;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #6366f1;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .badge-provider {
+            background: #3730a3;
+            color: #c7d2fe;
+        }
+        .badge-policy {
+            background: #065f46;
+            color: #a7f3d0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤗 Inference Providers</h1>
+    
+    <div class="section">
+        <label for="token">HF Token</label>
+        <div class="token-field">
+            <input type="password" id="token" placeholder="hf_..." autocomplete="off">
+            <button class="toggle-visibility" onclick="toggleToken()">Показать</button>
+        </div>
+        <div class="saved-token hidden" id="savedTokenDisplay">
+            <span>✓ Токен сохранён в памяти</span>
+            <button onclick="clearToken()">Удалить</button>
+        </div>
+        <p style="font-size:12px;color:#606080;margin-top:8px;">
+            Токен не сохраняется на диск. При перезагрузке страницы нужно будет ввести заново.
+            <a href="https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained" target="_blank" style="color:#6366f1;">Получить токен →</a>
+        </p>
+    </div>
+
+    <div class="section">
+        <div class="row">
+            <div>
+                <label for="model">Модель</label>
+                <select id="model">
+                    <option value="openai/gpt-oss-120b">openai/gpt-oss-120b</option>
+                    <option value="deepseek-ai/DeepSeek-R1">deepseek-ai/DeepSeek-R1</option>
+                    <option value="deepseek-ai/DeepSeek-V3">deepseek-ai/DeepSeek-V3</option>
+                    <option value="meta-llama/Llama-3.3-70B-Instruct">meta-llama/Llama-3.3-70B</option>
+                    <option value="Qwen/Qwen2.5-72B-Instruct">Qwen/Qwen2.5-72B</option>
+                    <option value="mistralai/Mistral-Large-Instruct-2411">mistralai/Mistral-Large</option>
+                    <option value="NousResearch/Hermes-3-Pro-Llama-3.1-70B">Hermes-3-Pro-70B</option>
+                    <option value="custom">✏️ Своя модель</option>
+                </select>
+                <input type="text" id="customModel" class="hidden" placeholder="автор/название" style="margin-top:8px;">
+            </div>
+            <div>
+                <label for="policy">Политика выбора провайдера</label>
+                <select id="policy">
+                    <option value="fastest">:fastest — быстрый</option>
+                    <option value="cheapest">:cheapest — дешёвый</option>
+                    <option value="preferred">:preferred — мой порядок</option>
+                    <option value="">без суффикса (auto)</option>
+                </select>
+            </div>
+        </div>
+        <p class="model-hint" id="modelHint">Автовыбор самого быстрого провайдера</p>
+    </div>
+
+    <div class="section">
+        <label class="system-prompt-toggle">
+            <input type="checkbox" id="useSystem" onchange="toggleSystem()">
+            <span>System prompt</span>
+        </label>
+        <textarea id="systemPrompt" class="hidden" placeholder="Ты полезный ассистент..."></textarea>
+        
+        <label for="prompt">Сообщение</label>
+        <textarea id="prompt" placeholder="Сколько букв G в слове huggingface?"></textarea>
+        
+        <div style="margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="stream" checked style="width:auto;">
+                <span style="font-size:13px;color:#a0a0c0;">Потоковый вывод (stream)</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="section">
+        <button class="btn btn-primary" id="sendBtn" onclick="send()">
+            <span id="btnText">Отправить</span>
+        </button>
+    </div>
+
+    <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <label style="margin:0;">Ответ</label>
+            <button class="clear-btn" onclick="clearResponse()">Очистить</button>
+        </div>
+        <div class="response-area" id="response">
+            <span class="placeholder">Ответ появится здесь...</span>
+        </div>
+        <div class="stats hidden" id="stats"></div>
+    </div>
+
+    <div class="section hidden" id="historySection">
+        <label>История (текущая сессия)</label>
+        <div id="history"></div>
+        <button class="clear-btn" onclick="clearHistory()" style="margin-top:8px;">Очистить историю</button>
+    </div>
+
+    <script>
+        let token = '';
+        let abortController = null;
+        let history = [];
+
+        const modelSelect = document.getElementById('model');
+        const customModel = document.getElementById('customModel');
+        const policySelect = document.getElementById('policy');
+        const modelHint = document.getElementById('modelHint');
+        const tokenInput = document.getElementById('token');
+        const savedTokenDisplay = document.getElementById('savedTokenDisplay');
+
+        modelSelect.addEventListener('change', () => {
+            if (modelSelect.value === 'custom') {
+                customModel.classList.remove('hidden');
+            } else {
+                customModel.classList.add('hidden');
+            }
+        });
+
+        policySelect.addEventListener('change', () => {
+            const hints = {
+                'fastest': 'Автовыбор самого быстрого провайдера (макс. токенов/сек)',
+                'cheapest': 'Самый дешёвый провайдер (цена за выходной токен)',
+                'preferred': 'По порядку из настроек hf.co/settings/inference-providers',
+                '': 'Автовыбор (как :fastest)'
+            };
+            modelHint.textContent = hints[policySelect.value] || hints[''];
+        });
+
+        function toggleToken() {
+            const btn = document.querySelector('.toggle-visibility');
+            if (tokenInput.type === 'password') {
+                tokenInput.type = 'text';
+                btn.textContent = 'Скрыть';
+            } else {
+                tokenInput.type = 'password';
+                btn.textContent = 'Показать';
+            }
+        }
+
+        function saveToken() {
+            token = tokenInput.value.trim();
+            if (token) {
+                tokenInput.value = '';
+                savedTokenDisplay.classList.remove('hidden');
+            }
+        }
+
+        function clearToken() {
+            token = '';
+            savedTokenDisplay.classList.add('hidden');
+            tokenInput.value = '';
+        }
+
+        tokenInput.addEventListener('blur', () => {
+            if (tokenInput.value.trim()) saveToken();
+        });
+
+        function toggleSystem() {
+            const el = document.getElementById('systemPrompt');
+            el.classList.toggle('hidden', !document.getElementById('useSystem').checked);
+        }
+
+        function getModelId() {
+            let model = modelSelect.value === 'custom' ? customModel.value.trim() : modelSelect.value;
+            const policy = policySelect.value;
+            if (policy) model += ':' + policy;
+            return model;
+        }
+
+        function buildMessages() {
+            const messages = [];
+            if (document.getElementById('useSystem').checked) {
+                const sp = document.getElementById('systemPrompt').value.trim();
+                if (sp) messages.push({ role: 'system', content: sp });
+            }
+            messages.push({ role: 'user', content: document.getElementById('prompt').value.trim() });
+            return messages;
+        }
+
+        function clearResponse() {
+            document.getElementById('response').innerHTML = '<span class="placeholder">Ответ появится здесь...</span>';
+            document.getElementById('stats').classList.add('hidden');
+        }
+
+        function addToHistory(prompt, model, response) {
+            history.unshift({ prompt: prompt.slice(0, 100), model, time: new Date().toLocaleTimeString() });
+            if (history.length > 5) history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const section = document.getElementById('historySection');
+            const container = document.getElementById('history');
+            if (!history.length) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            container.innerHTML = history.map((h, i) => `
+                <div class="history-item" onclick="restorePrompt(${i})">
+                    <div class="q">${h.prompt}</div>
+                    <div class="meta">${h.model} · ${h.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function restorePrompt(idx) {
+            document.getElementById('prompt').value = history[idx].prompt;
+        }
+
+        function clearHistory() {
+            history = [];
+            document.getElementById('historySection').classList.add('hidden');
+        }
+
+        async function send() {
+            if (!token) {
+                if (!tokenInput.value.trim()) {
+                    showError('Введите HF токен');
+                    tokenInput.focus();
+                    return;
+                }
+                saveToken();
+            }
+
+            const promptText = document.getElementById('prompt').value.trim();
+            if (!promptText) {
+                showError('Введите сообщение');
+                document.getElementById('prompt').focus();
+                return;
+            }
+
+            const modelId = getModelId();
+            if (!modelId || modelId.endsWith(':')) {
+                showError('Укажите корректную модель');
+                return;
+            }
+
+            const useStream = document.getElementById('stream').checked;
+            const sendBtn = document.getElementById('sendBtn');
+            const btnText = document.getElementById('btnText');
+            const responseEl = document.getElementById('response');
+            const statsEl = document.getElementById('stats');
+
+            // UI: loading
+            sendBtn.disabled = true;
+            btnText.innerHTML = '<span class="spinner"></span>Запрос...';
+            responseEl.innerHTML = '';
+            statsEl.classList.add('hidden');
+
+            const startTime = performance.now();
+            let fullText = '';
+            let provider = '';
+            let finishReason = '';
+
+            abortController = new AbortController();
+
+            try {
+                const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: modelId,
+                        messages: buildMessages(),
+                        stream: useStream,
+                        max_tokens: 2048
+                    }),
+                    signal: abortController.signal
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error?.message || `HTTP ${res.status}: ${res.statusText}`);
+                }
+
+                if (useStream) {
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n').filter(l => l.trim());
+                        
+                        for (const line of lines) {
+                            if (!line.startsWith('data: ')) continue;
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+                            
+                            try {
+                                const parsed = JSON.parse(data);
+                                const delta = parsed.choices?.[0]?.delta;
+                                if (delta?.content) {
+                                    fullText += delta.content;
+                                    responseEl.textContent = fullText;
+                                    responseEl.scrollTop = responseEl.scrollHeight;
+                                }
+                                if (parsed.choices?.[0]?.finish_reason) {
+                                    finishReason = parsed.choices[0].finish_reason;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                } else {
+                    const data = await res.json();
+                    fullText = data.choices?.[0]?.message?.content || '';
+                    finishReason = data.choices?.[0]?.finish_reason || '';
+                    provider = data.provider || '';
+                    responseEl.textContent = fullText;
+                }
+
+                const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                const tokens = fullText.length / 4; // rough estimate
+                
+                statsEl.innerHTML = `
+                    <span>⏱ ${elapsed}s</span>
+                    <span>~${Math.round(tokens)} токенов</span>
+                    ${finishReason ? `<span>финиш: ${finishReason}</span>` : ''}
+                    ${provider ? `<span class="badge badge-provider">${provider}</span>` : ''}
+                    <span class="badge badge-policy">${policySelect.value || 'auto'}</span>
+                `;
+                statsEl.classList.remove('hidden');
+
+                addToHistory(promptText, modelId.split(':')[0], fullText);
+
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    responseEl.innerHTML = '<span class="placeholder">Отменено</span>';
+                } else {
+                    showError(err.message);
+                }
+            } finally {
+                sendBtn.disabled = false;
+                btnText.textContent = 'Отправить';
+                abortController = null;
+            }
+        }
+
+        function showError(msg) {
+            const responseEl = document.getElementById('response');
+            responseEl.innerHTML = `<span class="error">Ошибка: ${msg}</span>`;
+        }
+
+        // Cancel on page hide (iOS background)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && abortController) {
+                abortController.abort();
+            }
+        });
+    </script>
+</body>
+</html>
